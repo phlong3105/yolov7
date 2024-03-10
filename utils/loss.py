@@ -173,6 +173,7 @@ class QFocalLoss(nn.Module):
         else:  # 'none'
             return loss
 
+
 class RankSort(torch.autograd.Function):
     @staticmethod
     def forward(ctx, logits, targets, delta_RS=0.50, eps=1e-10): 
@@ -271,6 +272,7 @@ class RankSort(torch.autograd.Function):
     def backward(ctx, out_grad1, out_grad2):
         g1, =ctx.saved_tensors
         return g1*out_grad1, None, None, None
+
 
 class aLRPLoss(torch.autograd.Function):
     @staticmethod
@@ -453,7 +455,9 @@ class ComputeLoss:
         tcls, tbox, indices, anchors = self.build_targets(p, targets)  # targets
 
         # Losses
-        for i, pi in enumerate(p):  # layer index, layer predictions
+        # for i, pi in enumerate(p):  # layer index, layer predictions
+        for i in range(self.nl):
+            pi = p[i]
             b, a, gj, gi = indices[i]  # image, anchor, gridy, gridx
             tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
 
@@ -587,7 +591,9 @@ class ComputeLossOTA:
     
 
         # Losses
-        for i, pi in enumerate(p):  # layer index, layer predictions
+        # for i, pi in enumerate(p):  # layer index, layer predictions
+        for i in range(self.nl):
+            pi = p[i]
             b, a, gj, gi = bs[i], as_[i], gjs[i], gis[i]  # image, anchor, gridy, gridx
             tobj = torch.zeros_like(pi[..., 0], device=device)  # target obj
 
@@ -672,8 +678,9 @@ class ComputeLossOTA:
             all_gi = []
             all_anch = []
             
-            for i, pi in enumerate(p):
-                
+            for i in range(self.nl):
+            # for i, pi in enumerate(p):
+                pi = p[i]
                 b, a, gj, gi = indices[i]
                 idx = (b == batch_idx)
                 b, a, gj, gi = b[idx], a[idx], gj[idx], gi[idx]                
