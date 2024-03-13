@@ -105,9 +105,9 @@ def train(hyp, opt, device, tb_writer=None):
     # Logging- Doing this before checking the dataset. Might update data_dict
     loggers = {"wandb": None}  # loggers dict
     if rank in [-1, 0]:
-        opt.hyp      = hyp  # add hyperparameters
-        run_id       = torch.load(weights, map_location=device).get("wandb_id") if weights.endswith(".pt") and os.path.isfile(weights) else None
-        wandb_logger = WandbLogger(opt, core.Path(opt.save_dir).stem, run_id, data_dict)
+        opt.hyp          = hyp  # add hyperparameters
+        run_id           = torch.load(weights, map_location=device).get("wandb_id") if weights.endswith(".pt") and os.path.isfile(weights) else None
+        wandb_logger     = WandbLogger(opt, core.Path(opt.save_dir).stem, run_id, data_dict)
         loggers["wandb"] = wandb_logger.wandb
         data_dict        = wandb_logger.data_dict
         if wandb_logger.wandb:
@@ -340,7 +340,8 @@ def train(hyp, opt, device, tb_writer=None):
             device_ids    = [opt.local_rank],
             output_device = opt.local_rank,
             # nn.MultiheadAttention incompatibility with DDP https://github.com/pytorch/pytorch/issues/26698
-            find_unused_parameters=any(isinstance(layer, nn.MultiheadAttention) for layer in model.modules())
+            # find_unused_parameters=any(isinstance(layer, nn.MultiheadAttention) for layer in model.modules(),),
+            find_unused_parameters=True,
         )
 
     # Model parameters
