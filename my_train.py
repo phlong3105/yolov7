@@ -34,9 +34,10 @@ from mon import core, DATA_DIR
 from utils.autoanchor import check_anchors
 from utils.datasets import create_dataloader
 from utils.general import (
-    check_dataset, check_file, check_img_size, colorstr, fitness, get_latest_run, increment_path,
-    init_seeds, labels_to_class_weights, labels_to_image_weights, one_cycle, print_mutation, set_logging,
-    strip_optimizer,
+    check_dataset, check_file, check_img_size, colorstr, fitness, fitness, fitness_ap,
+    fitness_ap50, fitness_f50, fitness_f, fitness_p, fitness_p50, fitness_r50,
+    fitness_r, get_latest_run, increment_path, init_seeds, labels_to_class_weights,
+    labels_to_image_weights, one_cycle, print_mutation, set_logging, strip_optimizer,
 )
 from utils.google_utils import attempt_download
 from utils.loss import ComputeLoss, ComputeLossOTA
@@ -233,17 +234,35 @@ def train(hyp, opt, device, tb_writer=None):
         lf = one_cycle(1, hyp["lrf"], epochs)  # cosine 1->hyp["lrf"]
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
     # plot_lr_scheduler(optimizer, scheduler, epochs)
-
+    
     # EMA
     ema = ModelEMA(model) if rank in [-1, 0] else None
     
     # Resume
-    start_epoch, best_fitness = 0, 0.0
+    start_epoch       = 0
+    best_fitness      = 0.0
+    best_fitness_p50  = 0.0
+    best_fitness_r50  = 0.0
+    best_fitness_f50  = 0.0
+    best_fitness_ap50 = 0.0
+    best_fitness_p    = 0.0
+    best_fitness_r    = 0.0
+    best_fitness_f    = 0.0
+    best_fitness_ap   = 0.0
+    
     if pretrained:
         # Optimizer
         if ckpt["optimizer"] is not None:
             optimizer.load_state_dict(ckpt["optimizer"])
-            best_fitness = ckpt["best_fitness"]
+            best_fitness      = ckpt["best_fitness"]
+            best_fitness_p50  = ckpt["best_fitness_p50"]
+            best_fitness_r50  = ckpt["best_fitness_r50"]
+            best_fitness_f50  = ckpt["best_fitness_f50"]
+            best_fitness_ap50 = ckpt["best_fitness_ap50"]
+            best_fitness_p    = ckpt["best_fitness_p"]
+            best_fitness_r    = ckpt["best_fitness_r"]
+            best_fitness_f    = ckpt["best_fitness_f"]
+            best_fitness_ap   = ckpt["best_fitness_ap"]
 
         # EMA
         if ema and ckpt.get("ema"):
@@ -505,21 +524,65 @@ def train(hyp, opt, device, tb_writer=None):
 
             # Log
             tags = [
-                "train/box_loss", "train/obj_loss", "train/cls_loss",  # train loss
-                "metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)",
-                "val/box_loss", "val/obj_loss", "val/cls_loss",  # val loss
-                "x/lr0", "x/lr1", "x/lr2"  # params
+                "train/box_loss",
+                "train/obj_loss",
+                "train/cls_loss",  # train loss
+                "metrics/precision@0.5(B)",
+                "metrics/recall@0.5(B)",
+                "metrics/f1@0.5(B)",
+                "metrics/map@0.5(B)",
+                "metrics/precision@0.5-0.95(B)",
+                "metrics/recall@0.5-0.95(B)",
+                "metrics/f1@0.5-0.95(B)",
+                "metrics/map@0.5-0.95(B)",
+                "val/box_loss",
+                "val/obj_loss",
+                "val/cls_loss",  # val loss
+                "x/lr0",
+                "x/lr1",
+                "x/lr2"  # params
             ]  
             for x, tag in zip(list(mloss[:-1]) + list(results) + lr, tags):
                 if tb_writer:
                     tb_writer.add_scalar(tag, x, epoch)  # tensorboard
                 if wandb_logger.wandb:
                     wandb_logger.log({tag: x})  # W&B
-
+            
             # Update best mAP
-            fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            fi      = fitness(np.array(results).reshape(1, -1))         # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            fi_p50  = fitness_p50(np.array(results).reshape(1, -1))     # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            fi_r50  = fitness_r50(np.array(results).reshape(1, -1))     # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            if (fi_p50 > 0.0) or (fi_r50 > 0.0):
+                fi_f50 = fitness_f50(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            else:
+                fi_f50 = 0.0
+            fi_ap50 = fitness_ap50(np.array(results).reshape(1, -1))    # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            fi_p    = fitness_p(np.array(results).reshape(1, -1))       # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            fi_r    = fitness_r(np.array(results).reshape(1, -1))       # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            if (fi_p > 0.0) or (fi_r > 0.0):
+                fi_f = fitness_f(np.array(results).reshape(1, -1))      # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            else:
+                fi_f = 0.0
+            fi_ap   = fitness_ap(np.array(results).reshape(1, -1))      # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+            
             if fi > best_fitness:
-                best_fitness = fi
+                best_fitness      = fi
+            if fi_p50 > best_fitness_p50:
+                best_fitness_p50  = fi_p50
+            if fi_r50 > best_fitness_r50:
+                best_fitness_r50  = fi_r50
+            if fi_f50 > best_fitness_f50:
+                best_fitness_f50  = fi_f50
+            if fi_ap50 > best_fitness_ap50:
+                best_fitness_ap50 = fi_ap50
+            if fi_p > best_fitness_p:
+                best_fitness_p    = fi_p
+            if fi_r > best_fitness_r:
+                best_fitness_r    = fi_r
+            if fi_f > best_fitness_f:
+                best_fitness_f    = fi_f
+            if fi_ap > best_fitness_ap:
+                best_fitness_ap   = fi_ap
             wandb_logger.end_epoch(best_result=best_fitness == fi)
 
             # Save model
@@ -539,14 +602,32 @@ def train(hyp, opt, device, tb_writer=None):
                 torch.save(ckpt, last)
                 if best_fitness == fi:
                     torch.save(ckpt, best)
-                if (best_fitness == fi) and (epoch >= 200):
-                    torch.save(ckpt, wdir / "best_{:03d}.pt".format(epoch))
-                if epoch == 0:
-                    torch.save(ckpt, wdir / "epoch_{:03d}.pt".format(epoch))
-                elif ((epoch+1) % 25) == 0:
-                    torch.save(ckpt, wdir / "epoch_{:03d}.pt".format(epoch))
-                elif epoch >= (epochs-5):
-                    torch.save(ckpt, wdir / "epoch_{:03d}.pt".format(epoch))
+                # if (best_fitness == fi) and (epoch >= 200):
+                #     torch.save(ckpt, wdir / "best_{:03d}.pt".format(epoch))
+                if best_fitness == fi:
+                    torch.save(ckpt, wdir / "best_overall.pt")
+                if best_fitness_p50 == fi_p50:
+                    torch.save(ckpt, wdir / "best_p50.pt")
+                if best_fitness_r50 == fi_r50:
+                    torch.save(ckpt, wdir / "best_r50.pt")
+                if best_fitness_f50 == fi_f50:
+                    torch.save(ckpt, wdir / "best_f50.pt")
+                if best_fitness_ap50 == fi_ap50:
+                    torch.save(ckpt, wdir / "best_ap50.pt")
+                if best_fitness_p == fi_p:
+                    torch.save(ckpt, wdir / "best_p.pt")
+                if best_fitness_r == fi_r:
+                    torch.save(ckpt, wdir / "best_r.pt")
+                if best_fitness_f == fi_f:
+                    torch.save(ckpt, wdir / "best_f.pt")
+                if best_fitness_ap == fi_ap:
+                    torch.save(ckpt, wdir / "best_ap.pt")
+                # if epoch == 0:
+                #     torch.save(ckpt, wdir / "epoch_{:03d}.pt".format(epoch))
+                # elif ((epoch+1) % 25) == 0:
+                #     torch.save(ckpt, wdir / "epoch_{:03d}.pt".format(epoch))
+                # elif epoch >= (epochs-5):
+                #     torch.save(ckpt, wdir / "epoch_{:03d}.pt".format(epoch))
                 if wandb_logger.wandb:
                     if ((epoch + 1) % opt.save_period == 0 and not final_epoch) and opt.save_period != -1:
                         wandb_logger.log_model(
@@ -639,44 +720,51 @@ def main(
     hostname = socket.gethostname().lower()
     
     # Get config args
-    config = core.parse_config_file(project_root=_current_dir / "config", config=config)
-    args   = core.load_config(config)
+    config   = core.parse_config_file(project_root=_current_dir / "config", config=config)
+    args     = core.load_config(config)
     
     # Prioritize input args --> config file args
-    root     = root      or args["root"]
-    root     = core.Path(root)
-    weights  = weights   or args["weights"]
-    model    = core.Path(model or args["model"])
-    model    = model if model.exists() else _current_dir / "config/training" / model.name
-    model    = model.config_file()
-    data     = core.Path(args["data"])
-    data     = data  if data.exists() else _current_dir / "data" / data.name
-    data     = data.config_file()
-    project  = root.name or args["project"]
-    fullname = fullname  or args["name"]
-    save_dir = save_dir  or root / "run" / "train" / fullname
-    save_dir = core.Path(save_dir)
+    root     = root     or args["root"]
+    weights  = weights  or args["weights"]
+    model    = model    or args["model"]
+    data     = args["data"]
+    project  = args["project"]
+    fullname = fullname or args["name"]
     device   = device   or args["device"]
-    hyp      = core.Path(args["hyp"])
-    hyp      = hyp if hyp.exists() else _current_dir / "data" / hyp.name
-    hyp      = hyp.config_file()
+    hyp      = args["hyp"]
     epochs   = epochs   or args["epochs"]
     exist_ok = exist_ok or args["exist_ok"]
     verbose  = verbose  or args["verbose"]
+    
+    # Parse arguments
+    root     = core.Path(root)
+    weights  = core.to_list(weights)
+    model    = core.Path(model)
+    model    = model if model.exists() else _current_dir / "config/training" / model.name
+    model    = str(model.config_file())
+    data     = core.Path(data)
+    data     = data  if data.exists() else _current_dir / "data" / data.name
+    data     = str(data.config_file())
+    project  = root.name or project
+    save_dir = save_dir  or root / "run" / "train" / fullname
+    save_dir = core.Path(save_dir)
+    hyp      = core.Path(hyp)
+    hyp      = hyp if hyp.exists() else _current_dir / "data" / hyp.name
+    hyp      = str(hyp.config_file())
     
     # Update arguments
     args["root"]       = root
     args["config"]     = config
     args["weights"]    = weights
-    args["model"]      = str(model)
-    args["data"]       = str(data)
+    args["model"]      = model
+    args["data"]       = data
     args["root"]       = root
     args["project"]    = project
     args["name"]       = fullname
     args["save_dir"]   = save_dir
     args["device"]     = device
     args["local_rank"] = local_rank
-    args["hyp"]        = str(hyp)
+    args["hyp"]        = hyp
     args["epochs"]     = epochs
     args["steps"]      = steps
     args["exist_ok"]   = exist_ok
