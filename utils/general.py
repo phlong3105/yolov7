@@ -19,10 +19,7 @@ import torchvision
 import yaml
 
 from utils.google_utils import gsutil_getsize
-from utils.metrics import (
-    fitness, fitness, fitness_ap, fitness_ap50,  fitness_f50, fitness_f,
-    fitness_p, fitness_p50, fitness_r50, fitness_r
-)
+from utils.metrics import fitness, fitness_ap, fitness_ap50,  fitness_f1, fitness_p, fitness_r
 from utils.torch_utils import init_torch_seeds
 
 # Settings
