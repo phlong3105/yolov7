@@ -347,15 +347,18 @@ def test(
 # region Main
 
 @click.command(name="test", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
-@click.option("--root",       type=str, default=None, help="Project root.")
-@click.option("--config",     type=str, default=None, help="Model config.")
-@click.option("--weights",    type=str, default=None, help="Weights paths.")
-@click.option("--model",      type=str, default=None, help="Model name.")
-@click.option("--data",       type=str, default=None, help="Source data directory.")
-@click.option("--fullname",   type=str, default=None, help="Save results to root/run/predict/fullname.")
-@click.option("--save-dir",   type=str, default=None, help="Optional saving directory.")
-@click.option("--device",     type=str, default=None, help="Running devices.")
-@click.option("--imgsz",      type=int, default=None, help="Image sizes.")
+@click.option("--root",       type=str,   default=None, help="Project root.")
+@click.option("--config",     type=str,   default=None, help="Model config.")
+@click.option("--weights",    type=str,   default=None, help="Weights paths.")
+@click.option("--model",      type=str,   default=None, help="Model name.")
+@click.option("--data",       type=str,   default=None, help="Source data directory.")
+@click.option("--fullname",   type=str,   default=None, help="Save results to root/run/predict/fullname.")
+@click.option("--save-dir",   type=str,   default=None, help="Optional saving directory.")
+@click.option("--device",     type=str,   default=None, help="Running devices.")
+@click.option("--imgsz",      type=int,   default=None, help="Image sizes.")
+@click.option("--conf",       type=float, default=None, help="Confidence threshold.")
+@click.option("--iou",        type=float, default=None, help="IoU threshold.")
+@click.option("--max-det",    type=int,   default=None, help="Max detections per image.")
 @click.option("--resize",     is_flag=True)
 @click.option("--benchmark",  is_flag=True)
 @click.option("--save-image", is_flag=True)
@@ -370,6 +373,9 @@ def main(
     save_dir  : str,
     device    : str,
     imgsz     : int,
+    conf      : float,
+    iou       : float,
+    max_det   : int,
     resize    : bool,
     benchmark : bool,
     save_image: bool,
@@ -390,6 +396,9 @@ def main(
     fullname = fullname or args["name"]
     device   = device   or args["device"]
     imgsz    = imgsz    or args["imgsz"]
+    conf     = conf     or args["conf"]
+    iou      = iou      or args["iou"]
+    max_det  = max_det  or args["max_det"]
     verbose  = verbose  or args["verbose"]
     
     # Parse arguments
@@ -417,6 +426,9 @@ def main(
     args["save_dir"] = save_dir
     args["device"]   = device
     args["imgsz"]    = imgsz
+    args["conf"]     = conf
+    args["iou"]      = iou
+    args["max_det"]  = max_det
     args["verbose"]  = verbose
     
     opt            = argparse.Namespace(**args)
