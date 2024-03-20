@@ -251,12 +251,12 @@ def train(hyp, opt, device, tb_writer=None):
         # Optimizer
         if ckpt["optimizer"] is not None:
             optimizer.load_state_dict(ckpt["optimizer"])
-            best_fitness      = ckpt["best_fitness"]
-            best_fitness_p    = ckpt["best_fitness_p"]
-            best_fitness_r    = ckpt["best_fitness_r"]
-            best_fitness_f1   = ckpt["best_fitness_f1"]
-            best_fitness_ap50 = ckpt["best_fitness_ap50"]
-            best_fitness_ap   = ckpt["best_fitness_ap"]
+            best_fitness      = ckpt.get("best_fitness",      0.0)
+            best_fitness_p    = ckpt.get("best_fitness_p",    0.0)
+            best_fitness_r    = ckpt.get("best_fitness_r",    0.0)
+            best_fitness_f1   = ckpt.get("best_fitness_f1",   0.0)
+            best_fitness_ap50 = ckpt.get("best_fitness_ap50", 0.0)
+            best_fitness_ap   = ckpt.get("best_fitness_ap",   0.0)
 
         # EMA
         if ema and ckpt.get("ema"):
