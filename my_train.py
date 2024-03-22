@@ -69,6 +69,11 @@ def train(hyp, opt, device, tb_writer=None):
     wdir.mkdir(parents=True, exist_ok=True)  # make dir
     last         = wdir     / "last.pt"
     best         = wdir     / "best.pt"
+    best_p       = wdir     / "best_p.pt"
+    best_r       = wdir     / "best_r.pt"
+    best_f1      = wdir     / "best_f1.pt"
+    best_ap50    = wdir     / "best_ap50.pt"
+    best_ap      = wdir     / "best_ap.pt"
     results_file = save_dir / "results.txt"
 
     # Save run settings
@@ -592,15 +597,15 @@ def train(hyp, opt, device, tb_writer=None):
                 # if (best_fitness == fi) and (epoch >= 200):
                 #     torch.save(ckpt, wdir / "best_{:03d}.pt".format(epoch))
                 if best_fitness_p == fi_p:
-                    torch.save(ckpt, wdir / "best_p.pt")
+                    torch.save(ckpt, best_p)
                 if best_fitness_r == fi_r:
-                    torch.save(ckpt, wdir / "best_r.pt")
+                    torch.save(ckpt, best_r)
                 if best_fitness_f1 == fi_f1:
-                    torch.save(ckpt, wdir / "best_f1.pt")
+                    torch.save(ckpt, best_f1)
                 if best_fitness_ap50 == fi_ap50:
-                    torch.save(ckpt, wdir / "best_ap50.pt")
+                    torch.save(ckpt, best_ap50)
                 if best_fitness_ap == fi_ap:
-                    torch.save(ckpt, wdir / "best_ap.pt")
+                    torch.save(ckpt, best_ap)
                 # if epoch == 0:
                 #     torch.save(ckpt, wdir / "epoch_{:03d}.pt".format(epoch))
                 # elif ((epoch+1) % 25) == 0:
@@ -646,7 +651,7 @@ def train(hyp, opt, device, tb_writer=None):
 
         # Strip optimizers
         final = best if best.exists() else last  # final model
-        for f in last, best:
+        for f in last, best, best_p, best_r, best_f1, best_ap50, best_ap:
             if f.exists():
                 strip_optimizer(f)  # strip optimizers
         if opt.bucket:
