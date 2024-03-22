@@ -509,13 +509,41 @@ def train(hyp, opt, device, tb_writer=None):
                     is_coco      = is_coco,
                     v5_metric    = opt.v5_metric,
                 )
-
+        
+            # Update best mAP
+            fi      = fitness(np.array(results).reshape(1, -1))         # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
+            fi_p    = fitness_p(np.array(results).reshape(1, -1))       # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
+            fi_r    = fitness_r(np.array(results).reshape(1, -1))       # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
+            if (fi_p > 0.0) or (fi_r > 0.0):
+                fi_f1 = fitness_f1(np.array(results).reshape(1, -1))    # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
+            else:
+                fi_f1 = 0.0
+            fi_ap50 = fitness_ap50(np.array(results).reshape(1, -1))    # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
+            fi_ap   = fitness_ap(np.array(results).reshape(1, -1))      # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
+            
+            results = list(results)
+            results.insert(2, fi_f1)
+            
+            if fi > best_fitness:
+                best_fitness      = fi
+            if fi_p > best_fitness_p:
+                best_fitness_p    = fi_p
+            if fi_r > best_fitness_r:
+                best_fitness_r    = fi_r
+            if fi_f1 > best_fitness_f1:
+                best_fitness_f1   = fi_f1
+            if fi_ap50 > best_fitness_ap50:
+                best_fitness_ap50 = fi_ap50
+            if fi_ap > best_fitness_ap:
+                best_fitness_ap   = fi_ap
+            wandb_logger.end_epoch(best_result=best_fitness == fi)
+            
             # Write
             with open(results_file, "a") as f:
-                f.write(s + "%10.4g" * 7 % results + "\n")  # append metrics, val_loss
+                f.write(s + "%10.4g" * 8 % results + "\n")  # append metrics, val_loss
             if len(opt.name) and opt.bucket:
                 os.system("gsutil cp %s gs://%s/results/results%s.txt" % (results_file, opt.bucket, opt.name))
-
+            
             # Log
             tags = [
                 "train/box_loss",
@@ -532,38 +560,13 @@ def train(hyp, opt, device, tb_writer=None):
                 "x/lr0",
                 "x/lr1",
                 "x/lr2"  # params
-            ]  
+            ]
             for x, tag in zip(list(mloss[:-1]) + list(results) + lr, tags):
                 if tb_writer:
                     tb_writer.add_scalar(tag, x, epoch)  # tensorboard
                 if wandb_logger.wandb:
                     wandb_logger.log({tag: x})  # W&B
             
-            # Update best mAP
-            fi      = fitness(np.array(results).reshape(1, -1))         # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
-            fi_p    = fitness_p(np.array(results).reshape(1, -1))       # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
-            fi_r    = fitness_r(np.array(results).reshape(1, -1))       # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
-            if (fi_p > 0.0) or (fi_r > 0.0):
-                fi_f1 = fitness_f1(np.array(results).reshape(1, -1))    # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
-            else:
-                fi_f1 = 0.0
-            fi_ap50 = fitness_ap50(np.array(results).reshape(1, -1))    # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
-            fi_ap   = fitness_ap(np.array(results).reshape(1, -1))      # weighted combination of [P, R, F1, mAP@.5, mAP@.5-.95]
-            
-            if fi > best_fitness:
-                best_fitness      = fi
-            if fi_p > best_fitness_p:
-                best_fitness_p    = fi_p
-            if fi_r > best_fitness_r:
-                best_fitness_r    = fi_r
-            if fi_f1 > best_fitness_f1:
-                best_fitness_f1   = fi_f1
-            if fi_ap50 > best_fitness_ap50:
-                best_fitness_ap50 = fi_ap50
-            if fi_ap > best_fitness_ap:
-                best_fitness_ap   = fi_ap
-            wandb_logger.end_epoch(best_result=best_fitness == fi)
-
             # Save model
             if (not opt.nosave) or (final_epoch and not opt.evolve):  # if save
                 ckpt = {
