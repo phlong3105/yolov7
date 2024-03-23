@@ -20,11 +20,11 @@ _current_dir  = _current_file.parents[0]
 
 def main():
     for f in [
-        # "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1280/weights/best_p.pt",
-        # "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1280/weights/best_r.pt",
-        # "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1280/weights/best_f1.pt",
-        # "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1280/weights/best_ap50.pt",
-        # "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1280/weights/best_ap.pt",
+        "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1920/weights/best_p.pt",
+        "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1920/weights/best_r.pt",
+        "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1920/weights/best_f1.pt",
+        "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1920/weights/best_ap50.pt",
+        "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1920/weights/best_ap.pt",
     ]:
         f = core.Path(f)
         if f.exists():
