@@ -14,8 +14,8 @@ import torch.backends.cudnn as cudnn
 import yaml
 from numpy import random
 
+import mon
 from models.experimental import attempt_load
-from mon import core
 from utils.datasets import LoadImages, LoadStreams
 from utils.general import (
     apply_classifier, check_img_size, check_imshow, non_max_suppression,
@@ -24,8 +24,8 @@ from utils.general import (
 from utils.plots import plot_one_box
 from utils.torch_utils import load_classifier, select_device, time_synchronized, TracedModel
 
-console       = core.console
-_current_file = core.Path(__file__).absolute()
+console       = mon.console
+_current_file = mon.Path(__file__).absolute()
 _current_dir  = _current_file.parents[0]
 
 
@@ -35,7 +35,7 @@ def predict(opt, save_img: bool = False):
     weights  = opt.weights
     weights  = weights[0] if isinstance(weights, list | tuple) and len(weights) == 1 else weights
     source   = opt.source
-    save_dir = core.Path(opt.save_dir)
+    save_dir = mon.Path(opt.save_dir)
     view_img = opt.view_img
     save_txt = opt.save_txt
     imgsz    = opt.imgsz
@@ -45,8 +45,8 @@ def predict(opt, save_img: bool = False):
     webcam   = source.isnumeric() or source.endswith(".txt") or source.lower().startswith(("rtsp://", "rtmp://", "http://", "https://"))
     
     # Directories
-    (core.Path(save_dir) / "images" if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-    (core.Path(save_dir) / "labels" if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    (mon.Path(save_dir) / "images" if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    (mon.Path(save_dir) / "labels" if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
     # Initialize
     set_logging()
@@ -127,9 +127,9 @@ def predict(opt, save_img: bool = False):
             else:
                 p, s, im0, frame = path, "", im0s, getattr(dataset, "frame", 0)
 
-            p         = core.Path(p)  # to Path
-            save_path = str(core.Path(save_dir) / "images" / p.name)  # img.jpg
-            txt_path  = str(core.Path(save_dir) / "labels" / p.stem) + ("" if dataset.mode == "image" else f"_{frame}")  # img.txt
+            p         = mon.Path(p)  # to Path
+            save_path = str(mon.Path(save_dir) / "images" / p.name)  # img.jpg
+            txt_path  = str(mon.Path(save_dir) / "labels" / p.stem) + ("" if dataset.mode == "image" else f"_{frame}")  # img.txt
             gn        = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             if len(det):
                 # Rescale boxes from img_size to im0 size
@@ -233,8 +233,8 @@ def main(
     hostname = socket.gethostname().lower()
     
     # Get config args
-    config   = core.parse_config_file(project_root=_current_dir / "config", config=config)
-    args     = core.load_config(config)
+    config   = mon.parse_config_file(project_root=_current_dir / "config", config=config)
+    args     = mon.load_config(config)
     
     # Prioritize input args --> config file args
     root         = root         or args.get("root")
@@ -253,18 +253,18 @@ def main(
     verbose      = verbose      or args.get("verbose")
     
     # Parse arguments
-    root     = core.Path(root)
-    weights  = core.to_list(weights)
-    model    = core.Path(model)
+    root     = mon.Path(root)
+    weights  = mon.to_list(weights)
+    model    = mon.Path(model)
     model    = model if model.exists() else _current_dir / "config/deploy" / model.name
     model    = str(model.config_file())
-    data_    = core.Path(args.get("data"))
+    data_    = mon.Path(args.get("data"))
     data_    = data_ if data_.exists() else _current_dir / "data"  / data_.name
     data_    = str(data_.config_file())
     project  = root.name or project
     save_dir = save_dir  or root / "run" / "predict" / model
-    save_dir = core.Path(save_dir)
-    imgsz    = core.to_list(imgsz)
+    save_dir = mon.Path(save_dir)
+    imgsz    = mon.to_list(imgsz)
     
     # Update arguments
     args["root"]         = root

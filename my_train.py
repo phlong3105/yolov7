@@ -27,14 +27,14 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+import mon
 import my_test as test  # import test.py to get mAP after each epoch
 from models.experimental import attempt_load
 from models.yolo import Model
-from mon import core, DATA_DIR
 from utils.autoanchor import check_anchors
 from utils.datasets import create_dataloader
 from utils.general import (
-    check_dataset, check_file, check_img_size, colorstr, fitness, fitness_ap,
+    check_file, check_img_size, colorstr, fitness, fitness_ap,
     fitness_ap50, fitness_f1, fitness_p, fitness_r, get_latest_run, increment_path,
     init_seeds, labels_to_class_weights,
     labels_to_image_weights, one_cycle, print_mutation, set_logging, strip_optimizer,
@@ -46,8 +46,8 @@ from utils.torch_utils import intersect_dicts, is_parallel, ModelEMA, select_dev
 from utils.wandb_logging.wandb_utils import check_wandb_resume, WandbLogger
 
 logger        = logging.getLogger(__name__)
-console       = core.console
-_current_file = core.Path(__file__).absolute()
+console       = mon.console
+_current_file = mon.Path(__file__).absolute()
 _current_dir  = _current_file.parents[0]
 
 
@@ -57,7 +57,7 @@ def train(hyp, opt, device, tb_writer=None):
     logger.info(colorstr("hyperparameters: ") + ", ".join(f"{k}={v}" for k, v in hyp.items()))
     weights          = opt.weights
     weights          = weights[0] if isinstance(weights, list | tuple) and len(weights) == 1 else weights
-    save_dir         = core.Path(opt.save_dir)
+    save_dir         = mon.Path(opt.save_dir)
     epochs           = opt.epochs
     batch_size       = opt.batch_size
     total_batch_size = opt.total_batch_size
@@ -92,17 +92,17 @@ def train(hyp, opt, device, tb_writer=None):
         _val      = data_dict["val"]
         _test     = data_dict["test"]
         if isinstance(_train, list):
-            _train = [str(DATA_DIR / t) for t in _train]
+            _train = [str(mon.DATA_DIR / t) for t in _train]
         elif _train:
-            _train = str(DATA_DIR / _train)
+            _train = str(mon.DATA_DIR / _train)
         if isinstance(_val, list):
-            _val   = [str(DATA_DIR / t) for t in _val]
+            _val   = [str(mon.DATA_DIR / t) for t in _val]
         elif _val:
-            _val   = str(DATA_DIR / _val)
+            _val   = str(mon.DATA_DIR / _val)
         if isinstance(_test, list):
-            _test  = [str(DATA_DIR / t) for t in _test]
+            _test  = [str(mon.DATA_DIR / t) for t in _test]
         elif _test:
-            _test  = str(DATA_DIR / _test)
+            _test  = str(mon.DATA_DIR / _test)
         data_dict["train"] = _train
         data_dict["val"]   = _val
         data_dict["test"]  = _test
@@ -113,7 +113,7 @@ def train(hyp, opt, device, tb_writer=None):
     if rank in [-1, 0]:
         opt.hyp          = hyp  # add hyperparameters
         run_id           = torch.load(weights, map_location=device).get("wandb_id") if weights.endswith(".pt") and os.path.isfile(weights) else None
-        wandb_logger     = WandbLogger(opt, core.Path(opt.save_dir).stem, run_id, data_dict)
+        wandb_logger     = WandbLogger(opt, mon.Path(opt.save_dir).stem, run_id, data_dict)
         loggers["wandb"] = wandb_logger.wandb
         data_dict        = wandb_logger.data_dict
         if wandb_logger.wandb:
@@ -709,8 +709,8 @@ def main(
     hostname = socket.gethostname().lower()
     
     # Get config args
-    config   = core.parse_config_file(project_root=_current_dir / "config", config=config)
-    args     = core.load_config(config)
+    config   = mon.parse_config_file(project_root=_current_dir / "config", config=config)
+    args     = mon.load_config(config)
     
     # Prioritize input args --> config file args
     root     = root     or args.get("root")
@@ -729,18 +729,18 @@ def main(
     verbose  = verbose  or args.get("verbose")
     
     # Parse arguments
-    root     = core.Path(root)
-    weights  = core.to_list(weights)
-    model    = core.Path(model)
+    root     = mon.Path(root)
+    weights  = mon.to_list(weights)
+    model    = mon.Path(model)
     model    = model if model.exists() else _current_dir / "config/training" / model.name
     model    = str(model.config_file())
-    data     = core.Path(data)
+    data     = mon.Path(data)
     data     = data  if data.exists() else _current_dir / "data" / data.name
     data     = str(data.config_file())
     project  = root.name or project
     save_dir = save_dir  or root / "run" / "train" / fullname
-    save_dir = core.Path(save_dir)
-    hyp      = core.Path(hyp)
+    save_dir = mon.Path(save_dir)
+    hyp      = mon.Path(hyp)
     hyp      = hyp if hyp.exists() else _current_dir / "data" / hyp.name
     hyp      = str(hyp.config_file())
     
@@ -772,7 +772,7 @@ def main(
     opt.global_rank = int(os.environ["RANK"])       if "RANK"       in os.environ else -1
     
     if not exist_ok:
-        core.delete_dir(paths=core.Path(opt.save_dir))
+        mon.delete_dir(paths=mon.Path(opt.save_dir))
     
     set_logging(opt.global_rank)
     
@@ -782,7 +782,7 @@ def main(
         ckpt    = opt.resume if isinstance(opt.resume, str) else get_latest_run()  # specified or most recent path
         assert os.path.isfile(ckpt), "ERROR: --resume checkpoint does not exist"
         apriori = opt.global_rank, opt.local_rank
-        with open(core.Path(ckpt).parent.parent / "opt.yaml") as f:
+        with open(mon.Path(ckpt).parent.parent / "opt.yaml") as f:
             opt = argparse.Namespace(**yaml.load(f, Loader=yaml.SafeLoader))  # replace
         opt.model, opt.weights, opt.resume, opt.batch_size, opt.global_rank, opt.local_rank = "", ckpt, True, opt.total_batch_size, *apriori
         logger.info("Resuming training from %s" % ckpt)
@@ -792,10 +792,10 @@ def main(
         opt.model    = check_file(opt.model)  # check files
         opt.hyp      = check_file(opt.hyp)    # check files
         assert len(opt.model) or len(opt.weights), "either --cfg or --weights must be specified"
-        opt.imgsz    = core.to_list(opt.imgsz)
+        opt.imgsz    = mon.to_list(opt.imgsz)
         opt.imgsz.extend([opt.imgsz[-1]] * (2 - len(opt.imgsz)))  # extend to 2 sizes (train, test)
         opt.name     = "evolve" if opt.evolve else opt.name
-        opt.save_dir = increment_path(core.Path(opt.save_dir), exist_ok=opt.exist_ok | opt.evolve)  # increment run
+        opt.save_dir = increment_path(mon.Path(opt.save_dir), exist_ok=opt.exist_ok | opt.evolve)  # increment run
     
     # DDP mode
     opt.total_batch_size = opt.batch_size
@@ -866,12 +866,12 @@ def main(
         assert opt.local_rank == -1, "DDP mode not implemented for --evolve"
         opt.notest, opt.nosave = True, True  # only test/save final epoch
         # ei = [isinstance(x, (int, float)) for x in hyp.values()]  # evolvable indices
-        yaml_file = core.Path(opt.save_dir) / "hyp_evolved.yaml"  # save best result here
+        yaml_file = mon.Path(opt.save_dir) / "hyp_evolved.yaml"  # save best result here
         if opt.bucket:
             os.system("gsutil cp gs://%s/evolve.txt ." % opt.bucket)  # download evolve.txt if exists
 
         for _ in range(300):  # generations to evolve
-            if core.Path("evolve.txt").exists():  # if evolve.txt exists: select best hyps and mutate
+            if mon.Path("evolve.txt").exists():  # if evolve.txt exists: select best hyps and mutate
                 # Select parent(s)
                 parent = "single"  # parent selection method: "single" or "weighted"
                 x      = np.loadtxt("evolve.txt", ndmin=2)

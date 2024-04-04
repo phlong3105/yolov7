@@ -5,14 +5,14 @@ from __future__ import annotations
 
 import logging
 
-from mon import core
+import mon
 from utils.general import (
     strip_optimizer,
 )
 
 logger        = logging.getLogger(__name__)
-console       = core.console
-_current_file = core.Path(__file__).absolute()
+console       = mon.console
+_current_file = mon.Path(__file__).absolute()
 _current_dir  = _current_file.parents[0]
 
 
@@ -28,7 +28,7 @@ def main():
         # "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1536/weights/best.pt",
         # "/home/longpham/10-workspace/11-code/mon/project/aic24_fisheye8k/run/train/yolov7_e6e_aic24_fisheye8k_1536/weights/last.pt",
     ]:
-        f = core.Path(f)
+        f = mon.Path(f)
         if f.exists():
             strip_optimizer(f)  # strip optimizers
 
