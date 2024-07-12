@@ -191,111 +191,28 @@ def predict(opt, save_img: bool = False):
 
 # region Main
 
-@click.command(name="predict", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
-@click.option("--root",         type=str,   default=None, help="Project root.")
-@click.option("--config",       type=str,   default=None, help="Model config.")
-@click.option("--weights",      type=str,   default=None, help="Weights paths.")
-@click.option("--model",        type=str,   default=None, help="Model name.")
-@click.option("--data",         type=str,   default=None, help="Source data directory.")
-@click.option("--fullname",     type=str,   default=None, help="Save results to root/run/predict/fullname.")
-@click.option("--save-dir",     type=str,   default=None, help="Optional saving directory.")
-@click.option("--device",       type=str,   default=None, help="Running devices.")
-@click.option("--imgsz",        type=int,   default=None, help="Image sizes.")
-@click.option("--conf",         type=float, default=None, help="Confidence threshold.")
-@click.option("--iou",          type=float, default=None, help="IoU threshold.")
-@click.option("--max-det",      type=int,   default=None, help="Max detections per image.")
-@click.option("--resize",       is_flag=True)
-@click.option("--augment",      is_flag=True)
-@click.option("--agnostic-nms", is_flag=True)
-@click.option("--benchmark",    is_flag=True)
-@click.option("--save-image",   is_flag=True)
-@click.option("--verbose",      is_flag=True)
-def main(
-    root        : str,
-    config      : str,
-    weights     : str,
-    model       : str,
-    data        : str,
-    fullname    : str,
-    save_dir    : str,
-    device      : str,
-    imgsz       : int,
-    conf        : float,
-    iou         : float,
-    max_det     : int,
-    resize      : bool,
-    augment     : bool,
-    agnostic_nms: bool,
-    benchmark   : bool,
-    save_image  : bool,
-    verbose     : bool,
-) -> str:
-    hostname = socket.gethostname().lower()
-    
-    # Get config args
-    config   = mon.parse_config_file(project_root=_current_dir / "config", config=config)
-    args     = mon.load_config(config)
-    
-    # Prioritize input args --> config file args
-    root         = root         or args.get("root")
-    weights      = weights      or args.get("weights")
-    model        = model        or args.get("model")
-    source       = data         or args.get("data")
-    project      = args.get("project")
-    fullname     = fullname     or args.get("name")
-    device       = device       or args.get("device")
-    imgsz        = imgsz        or args.get("imgsz")
-    conf         = conf         or args.get("conf")
-    iou          = iou          or args.get("iou")
-    max_det      = max_det      or args.get("max_det")
-    augment      = augment      or args.get("augment")
-    agnostic_nms = agnostic_nms or args.get("agnostic_nms")
-    verbose      = verbose      or args.get("verbose")
-    
-    # Parse arguments
-    root     = mon.Path(root)
-    weights  = mon.to_list(weights)
-    model    = mon.Path(model)
-    model    = model if model.exists() else _current_dir / "config/deploy" / model.name
-    model    = str(model.config_file())
-    data_    = mon.Path(args.get("data"))
-    data_    = data_ if data_.exists() else _current_dir / "data"  / data_.name
-    data_    = str(data_.config_file())
-    project  = root.name or project
-    save_dir = save_dir  or root / "run" / "predict" / model
-    save_dir = mon.Path(save_dir)
-    imgsz    = mon.to_list(imgsz)
-    
-    # Update arguments
-    args["root"]         = root
-    args["config"]       = config
-    args["weights"]      = weights
-    args["model"]        = model
-    args["data"]         = data_
-    args["source"]       = source
-    args["project"]      = project
-    args["name"]         = fullname
-    args["save_dir"]     = save_dir
-    args["device"]       = device
-    args["imgsz"]        = imgsz
-    args["conf"]         = conf
-    args["iou"]          = iou
-    args["max_det"]      = max_det
-    args["augment"]      = augment
-    args["agnostic_nms"] = agnostic_nms
-    args["verbose"]      = verbose
-    
-    opt = argparse.Namespace(**args)
-    
+def main() -> str:
+    # Parse args
+    args        = mon.parse_predict_args()
+    model       = mon.Path(args.model)
+    model       = model if model.exists() else _current_dir / "config" / "deploy" / model.name
+    model       = str(model.config_file())
+    data_       = mon.Path(args.data)
+    data_       = data_ if data_.exists() else _current_dir / "data" / data_.name
+    data_       = str(data_.config_file())
+    args.model  = model
+    args.source = args.data
+    args.data   = data_
+        
     with torch.no_grad():
-        if opt.update:  # update all models (to fix SourceChangeWarning)
-            for opt.weights in ["yolov7.pt"]:
-                predict(opt)
-                strip_optimizer(opt.weights)
+        if args.update:  # update all models (to fix SourceChangeWarning)
+            for args.weights in ["yolov7.pt"]:
+                predict(args)
+                strip_optimizer(args.weights)
         else:
-            predict(opt)
+            predict(args)
     
-    return str(opt.save_dir)
+    return str(args.save_dir)
 
 
 if __name__ == "__main__":

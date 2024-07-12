@@ -347,155 +347,86 @@ def test(
 
 # region Main
 
-@click.command(name="test", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
-@click.option("--root",       type=str,   default=None, help="Project root.")
-@click.option("--config",     type=str,   default=None, help="Model config.")
-@click.option("--weights",    type=str,   default=None, help="Weights paths.")
-@click.option("--model",      type=str,   default=None, help="Model name.")
-@click.option("--data",       type=str,   default=None, help="Source data directory.")
-@click.option("--fullname",   type=str,   default=None, help="Save results to root/run/predict/fullname.")
-@click.option("--save-dir",   type=str,   default=None, help="Optional saving directory.")
-@click.option("--device",     type=str,   default=None, help="Running devices.")
-@click.option("--imgsz",      type=int,   default=None, help="Image sizes.")
-@click.option("--conf",       type=float, default=None, help="Confidence threshold.")
-@click.option("--iou",        type=float, default=None, help="IoU threshold.")
-@click.option("--max-det",    type=int,   default=None, help="Max detections per image.")
-@click.option("--resize",     is_flag=True)
-@click.option("--benchmark",  is_flag=True)
-@click.option("--save-image", is_flag=True)
-@click.option("--verbose",    is_flag=True)
-def main(
-    root      : str,
-    config    : str,
-    weights   : str,
-    model     : str,
-    data      : str,
-    fullname  : str,
-    save_dir  : str,
-    device    : str,
-    imgsz     : int,
-    conf      : float,
-    iou       : float,
-    max_det   : int,
-    resize    : bool,
-    benchmark : bool,
-    save_image: bool,
-    verbose   : bool,
-) -> str:
-    hostname = socket.gethostname().lower()
+def main() -> str:
+    # Parse args
+    args        = mon.parse_predict_args()
+    model       = mon.Path(args.model)
+    model       = model if model.exists() else _current_dir / "config" / "training" / model.name
+    model       = str(model.config_file())
+    data_       = mon.Path(args.data)
+    data_       = data_ if data_.exists() else _current_dir / "data" / data_.name
+    data_       = str(data_.config_file())
+    names       = mon.Path(args.names)
+    names       = names if names.exists() else _current_dir / "data" / names.name
+    names       = str(names.config_file())
+    args.model  = model
+    args.source = args.data
+    args.data   = data_
+    args.names  = names
     
-    # Get config args
-    config   = mon.parse_config_file(project_root=_current_dir / "config", config=config)
-    args     = mon.load_config(config)
-    
-    # Prioritize input args --> config file args
-    root     = root     or args.get("root")
-    weights  = weights  or args.get("weights")
-    model    = model    or args.get("model")
-    data     = args.get("data")
-    project  = args.get("project")
-    fullname = fullname or args.get("name")
-    device   = device   or args.get("device")
-    imgsz    = imgsz    or args.get("imgsz")
-    conf     = conf     or args.get("conf")
-    iou      = iou      or args.get("iou")
-    max_det  = max_det  or args.get("max_det")
-    verbose  = verbose  or args.get("verbose")
-    
-    # Parse arguments
-    root     = mon.Path(root)
-    weights  = mon.to_list(weights)
-    model    = mon.Path(model)
-    model    = model if model.exists() else _current_dir / "config/training" / model.name
-    model    = str(model.config_file())
-    data     = mon.Path(data)
-    data     = data  if data.exists() else _current_dir / "data"  / data.name
-    data     = str(data.config_file())
-    project  = root.name or project
-    save_dir = save_dir  or root / "run" / "test" / fullname
-    save_dir = mon.Path(save_dir)
-    imgsz    = mon.to_list(imgsz)
-    
-    # Update arguments
-    args["root"]     = root
-    args["config"]   = config
-    args["weights"]  = weights
-    args["model"]    = model
-    args["data"]     = data
-    args["project"]  = project
-    args["name"]     = fullname
-    args["save_dir"] = save_dir
-    args["device"]   = device
-    args["imgsz"]    = imgsz
-    args["conf"]     = conf
-    args["iou"]      = iou
-    args["max_det"]  = max_det
-    args["verbose"]  = verbose
-    
-    opt            = argparse.Namespace(**args)
-    opt.save_json |= opt.data.endswith("coco.yaml")
-    opt.data       = check_file(opt.data)  # check file
+    args.save_json |= args.data.endswith("coco.yaml")
+    args.data       = check_file(args.data)  # check file
     
     # Test
-    if opt.task in ["val", "test"]:  # run normally
+    if args.task in ["val", "test"]:  # run normally
         test(
-            opt         = opt,
-            data        = opt.data,
-            weights     = opt.weights,
-            batch_size  = opt.batch_size,
-            imgsz       = opt.img_size,
-            conf_thres  = opt.conf,
-            iou_thres   = opt.iou,
-            save_json   = opt.save_json,
-            single_cls  = opt.single_cls,
-            augment     = opt.augment,
-            verbose     = opt.verbose,
-            save_txt    = opt.save_txt | opt.save_hybrid,
-            save_hybrid = opt.save_hybrid,
-            save_conf   = opt.save_conf,
-            trace       = not opt.no_trace,
-            v5_metric   = opt.v5_metric
+            opt         = args,
+            data        = args.data,
+            weights     = args.weights,
+            batch_size  = args.batch_size,
+            imgsz       = args.img_size,
+            conf_thres  = args.conf,
+            iou_thres   = args.iou,
+            save_json   = args.save_json,
+            single_cls  = args.single_cls,
+            augment     = args.augment,
+            verbose     = args.verbose,
+            save_txt    = args.save_txt | args.save_hybrid,
+            save_hybrid = args.save_hybrid,
+            save_conf   = args.save_conf,
+            trace       = not args.no_trace,
+            v5_metric   = args.v5_metric
         )
-    elif opt.task == "speed":  # speed benchmarks
-        for w in opt.weights:
+    elif args.task == "speed":  # speed benchmarks
+        for w in args.weights:
             test(
-                opt        = opt,
-                data       = opt.data,
+                opt        = args,
+                data       = args.data,
                 weights    = w,
-                batch_size = opt.batch_size,
-                imgsz      = opt.img_size,
+                batch_size = args.batch_size,
+                imgsz      = args.img_size,
                 conf_thres = 0.25,
                 iou_thres  = 0.45,
                 save_json  = False,
                 plots      = False,
-                v5_metric  = opt.v5_metric,
+                v5_metric  = args.v5_metric,
             )
-    elif opt.task == "study":  # run over a range of settings and save/plot
+    elif args.task == "study":  # run over a range of settings and save/plot
         # python test.py --task study --data coco.yaml --iou 0.65 --weights yolov7.pt
         x = list(range(256, 1536 + 128, 128))  # x axis (image sizes)
-        for w in opt.weights:
-            f = f"study_{mon.Path(opt.data).stem}_{mon.Path(w).stem}.txt"  # filename to save to
+        for w in args.weights:
+            f = f"study_{mon.Path(args.data).stem}_{mon.Path(w).stem}.txt"  # filename to save to
             y = []  # y axis
             for i in x:  # img-size
                 print(f"\nRunning {f} point {i}...")
                 r, _, t = test(
-                    opt        = opt,
-                    data       = opt.data,
+                    opt        = args,
+                    data       = args.data,
                     weights    = w,
-                    batch_size = opt.batch_size,
+                    batch_size = args.batch_size,
                     imgsz      = i,
-                    conf_thres = opt.conf,
-                    iou_thres  = opt.iou,
-                    save_json  = opt.save_json,
+                    conf_thres = args.conf,
+                    iou_thres  = args.iou,
+                    save_json  = args.save_json,
                     plots      = False,
-                    v5_metric  = opt.v5_metric,
+                    v5_metric  = args.v5_metric,
                 )
                 y.append(r + t)  # results and times
             np.savetxt(f, y, fmt="%10.4g")  # save
         os.system("zip -r study.zip study_*.txt")
         plot_study_txt(x=x)  # plot
     
-    return str(opt.save_dir)
+    return str(args.save_dir)
 
 
 if __name__ == "__main__":
